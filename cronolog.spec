@@ -1,67 +1,73 @@
-%define name cronolog
-%define version 1.6.2
-%define release 1
-%define group System Networking/Daemons
+%define gitrepo http://github.com/philfry/%{name}.git
+%define gitrev %{version}
 
-Summary:	a flexible log file rotation program for Apache
-Name:		%{name}
-Version:	%{version}
-Release:	%{release}
-Copyright: 	Apache license
-Group:		%{group}
-Packager:	Andrew Ford <A.Ford@ford-mason.co.uk>
-URL: 		http://www.ford-mason.co.uk/resources/cronolog/
+%global _hardened_build 1
 
-Source:		http://www.ford-mason.co.uk/resources/cronolog/cronolog-%version.tar.gz
+Name: cronolog
+Version: 1.6.3
+Release: 1%{?dist}
+Summary: a flexible log file rotation program for Apache
+Group: System Environment/Daemons
+License: GPL
+URL: https://github.com/philfry/%{name}
+Source: %{name}-%{version}.tar.gz
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+Requires(post):  /sbin/install-info
+Requires(preun): /sbin/install-info
 
-BuildRoot:	/tmp/%{name}-root
 
 %description
-"cronolog" is a simple program that reads log messages from its input
-and writes them to a set of output files, the names of which are
-constructed using template and the current date and time.  The
-template uses the same format specifiers as the Unix date command
-(which are the same as the standard C strftime library function).
+cronolog is a simple filter program that reads log file entries from
+standard input and writes each entry to the output file specified
+by a filename template and the current date and time. When the
+expanded filename changes, the current file is closed and a new one
+opened. cronolog is intended to be used in conjunction with a Web server,
+such as Apache, to split the access log into daily or monthly logs.
 
-%changelog
 
 %prep
-%setup -n %{name}-%{version}
+%setup -q
+
 
 %build
-
-./configure
-make 
+%configure
+make %{_smp_mflags}
 
 
 %install
-rm -rf $RPM_BUILD_ROOT
-
-mkdir -p $RPM_BUILD_ROOT/usr/share/doc/%{name}-${RPM_PACKAGE_VERSION} -m 755
-make prefix=$RPM_BUILD_ROOT/usr mandir=$RPM_BUILD_ROOT/usr/share/man install
-install -m 644 README $RPM_BUILD_ROOT/usr/share/doc/%name-${RPM_PACKAGE_VERSION}
-#install -m 644 $RPM_SOURCE_DIR/doc/cronolog.1m $RPM_BUILD_ROOT/usr/man/man1/cronolog.1
-#install -m 755 $RPM_SOURCE_DIR/src/cronolog $RPM_BUILD_ROOT/usr/sbin/cronolog
-#strip  $RPM_BUILD_ROOT/usr/sbin/* || echo Ignored strip on a non-binary file
+[ '%{buildroot}' != '/' ] && rm -rf %{buildroot}
+make install DESTDIR=%{buildroot}
+sed -i 's|/www/sbin|/usr/sbin|g' %{buildroot}/%{_mandir}/man1/*
+mkdir -p %{buildroot}/%{_bindir}
+mv %{buildroot}/%{_sbindir}/cronosplit %{buildroot}/%{_bindir}
+rm -f %{buildroot}%{_infodir}/dir
 
 
 %post
+/sbin/install-info %{_infodir}/%{name}.info %{_infodir}/dir || :
+
 
 %preun
-
-%postun
+/sbin/install-info --delete %{_infodir}/%{name}.info %{_infodir}/dir || :
 
 
 %clean
-rm -rf $RPM_BUILD_ROOT
+[ '%{buildroot}' != '/' ] && rm -rf %{buildroot}
 
 
 %files
-#%attr(-,root,root) /usr/share/doc/%{name}-%{version}/README
-%attr(-,root,root) /usr/sbin/cronolog
-%attr(-,root,root) /usr/sbin/cronosplit
+%defattr(-, root, root)
+%doc AUTHORS COPYING ChangeLog NEWS README TODO
+%{_sbindir}/cronolog
+%{_bindir}/cronosplit
+%{_mandir}/man1/cronolog.1*
+%{_mandir}/man1/cronosplit.1*
+%{_infodir}/cronolog.info*
 
-#%files man
-%attr(644,root,root) /usr/share/man/man1/*.1*
 
-%doc README
+%changelog
+* Sat Jun 27 2015 Philippe Kueck <projects@unixadm.org> - 1.6.3-1
+- bump to 1.6.3 which is basically 1.6.2 with all patches included
+
+* Thu Jul  7 2011 Philippe Kueck <projects@unixadm.org> - 1.6.2-99
+- initial packaging
