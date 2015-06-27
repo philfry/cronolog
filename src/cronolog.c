@@ -86,6 +86,7 @@
 
 #include "cronoutils.h"
 #include "getopt.h"
+#include <signal.h>
 
 
 /* Forward function declaration */
@@ -93,6 +94,7 @@
 int	new_log_file(const char *, const char *, mode_t, const char *,
 		     PERIODICITY, int, int, char *, size_t, time_t, time_t *);
 
+void    terminate_self(int);
 
 /* Definition of version and usage messages */
 
@@ -307,6 +309,8 @@ main(int argc, char **argv)
 
     DEBUG(("Rotation period is per %d %s\n", period_multiple, periods[periodicity]));
 
+    /* set up signal handler to catch USR1 (graceful restart by apache) */
+    signal(SIGUSR1, terminate_self);
 
     /* Loop, waiting for data on standard input */
 
@@ -417,4 +421,12 @@ new_log_file(const char *template, const char *linkname, mode_t linktype, const 
 	create_link(pfilename, linkname, linktype, prevlinkname);
     }
     return log_fd;
+}
+
+void terminate_self(int sig)
+{
+    time_t time_now = time(NULL);
+    DEBUG(("%s (%d): received signal USR1; terminating.\n",
+	   timestamp(time_now), time_now));
+    exit(6);
 }
